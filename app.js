@@ -185,26 +185,23 @@ io.sockets.on('connection', function(socket) {
     	console.log('login 이벤트를 받았습니다.');
     	console.dir(login);
 
-        // 기존 클라이언트 ID가 없으면 클라이언트 ID를 맵에 추가
-        console.log('접속한 소켓의 ID : ' + socket.id);
-        login_ids[login.id] = socket.id;
-        socket.login_id = login.id;
+       if(login.id != ''){
+    		 // 기존 클라이언트 ID가 없으면 클라이언트 ID를 맵에 추가
+            console.log('접속한 소켓의 ID : ' + socket.id);
+            login_ids[login.id] = socket.id;
+            socket.login_id = login.id;
 
-        console.log('접속한 클라이언트 ID 갯수 : %d', Object.keys(login_ids).length);
+            console.log('접속한 클라이언트 ID 갯수 : %d', Object.keys(login_ids).length);
 
-        // 응답 메시지 전송
-        sendResponse(socket, 'login', '200', '로그인되었습니다.');
-        
-        for(i=0;i<idList.length;i++){
-        	if(idList[i]==login.id){
-        		idList.pop(i);
-        	}
-        }
-        idList.push(login.id);
-        
-        var output = {command:'list', ids:idList};
-        console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output));
-        io.sockets.emit('currentId', output);
+            // 응답 메시지 전송
+            sendResponse(socket, 'login', '200', '로그인되었습니다.');
+            var idList = [];
+            idList=Object.keys(login_ids);
+            
+            var output = {command:'list', ids:idList};
+            console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output));
+            io.sockets.emit('currentId', output);
+    	}
     });
 
     
@@ -260,12 +257,12 @@ io.sockets.on('connection', function(socket) {
     	console.log('room 이벤트를 받았습니다.');
     	console.dir(room);
     	
-        if (room.command === 'create') {
-
+       if (room.command === 'create') {
+        	var data;
         	if (io.sockets.adapter.rooms[room.roomId]) { // 방이 이미 만들어져 있는 경우
         		console.log('방이 이미 만들어져 있습니다.');
-		socket.join(room.roomId);
-        		
+        		socket.join(room.roomId);
+        		data=room.roomId+'방이 이미 존재하여 접속하였습니다.';
         	} else {
         		console.log('방을 새로 만듭니다.');
         		
@@ -275,7 +272,11 @@ io.sockets.on('connection', function(socket) {
 	            curRoom.id = room.roomId;
 	            curRoom.name = room.roomName;
 	            curRoom.owner = room.roomOwner;
+	            data=room.roomId+'방을 만들었습니다.';
         	}
+        	
+            var sysmessage = {sender:'system', recepient:room.roomId, command:'groupchat', type:'text', data:data};
+            socket.emit('message',sysmessage);
 
         } else if (room.command === 'update') {
         	
@@ -325,7 +326,16 @@ io.sockets.on('connection', function(socket) {
         
         io.sockets.emit('room', output);
     });
-    
+    socket.on('disconnect', function(){
+    	console.log('disconnect 이벤트를 받았습니다.');
+    	console.log(socket.login_id);
+    	delete login_ids[socket.login_id];
+    	var idList = [];
+        idList=Object.keys(login_ids);
+    	var output = {command:'list', ids:idList};
+        console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output));
+        io.sockets.emit('currentId', output);
+    });
     
     
 });
