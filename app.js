@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 채팅하기
  * 
  * 그룹 채팅하기
@@ -164,7 +164,6 @@ var server = http.createServer(app).listen(app.get('port'), function(){
 
 // 로그인 아이디 매핑 (로그인 ID -> 소켓 ID)
 var login_ids = {};
-var idList = [];
 
 
 // socket.io 서버를 시작합니다.
@@ -184,8 +183,7 @@ io.sockets.on('connection', function(socket) {
     socket.on('login', function(login) {
     	console.log('login 이벤트를 받았습니다.');
     	console.dir(login);
-
-       if(login.id != ''){
+    	if(login.id != ''){
     		 // 기존 클라이언트 ID가 없으면 클라이언트 ID를 맵에 추가
             console.log('접속한 소켓의 ID : ' + socket.id);
             login_ids[login.id] = socket.id;
@@ -197,7 +195,6 @@ io.sockets.on('connection', function(socket) {
             sendResponse(socket, 'login', '200', '로그인되었습니다.');
             var idList = [];
             idList=Object.keys(login_ids);
-            
             var output = {command:'list', ids:idList};
             console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output));
             io.sockets.emit('currentId', output);
@@ -237,18 +234,25 @@ io.sockets.on('connection', function(socket) {
         	
         }
     });
+    
     socket.on('invite', function(inviteinfo){
     	console.log('invite 이벤트를 받았습니다.');
     	console.dir(JSON.stringify(inviteinfo));
-    	var inviteId=inviteinfo.inviteId;
+    	var inviteIds=inviteinfo.inviteId;
     	var roomId=inviteinfo.inviteRoom;
     	var roomOwner=inviteinfo.inviteRoomOwner;
     	var output={inviteRoom:roomId, inviteRoomOwner:roomOwner}
-    	console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output)+inviteId);
-    	io.sockets.connected[login_ids[inviteId]].emit('invite', output);
-    	var data=inviteId+'님이 입장했습니다.';
-    	var sysmessage = {sender:'system', recepient:roomId, command:'groupchat', type:'text', data:data};
-    	io.sockets.in(roomId).emit('message', sysmessage);
+    	var Ids='';
+    	for(var i=0;i<inviteIds.length;i++){
+    		var inviteId=inviteIds[i];
+	    	console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output)+inviteId);
+	    	io.sockets.connected[login_ids[inviteId]].emit('invite', output);
+	    	Ids=Ids+'['+inviteId+']';
+    	}
+	    var data=Ids+'님이 입장했습니다.';
+	    var sysmessage = {sender:'system', recepient:roomId, command:'groupchat', type:'text', data:data};
+	    io.sockets.in(roomId).emit('message', sysmessage);
+    	
     });
     
 
@@ -257,12 +261,11 @@ io.sockets.on('connection', function(socket) {
     	console.log('room 이벤트를 받았습니다.');
     	console.dir(room);
     	
-       if (room.command === 'create') {
-        	var data;
+        if (room.command === 'create') {
+
         	if (io.sockets.adapter.rooms[room.roomId]) { // 방이 이미 만들어져 있는 경우
         		console.log('방이 이미 만들어져 있습니다.');
         		socket.join(room.roomId);
-        		data=room.roomId+'방이 이미 존재하여 접속하였습니다.';
         	} else {
         		console.log('방을 새로 만듭니다.');
         		
@@ -272,11 +275,7 @@ io.sockets.on('connection', function(socket) {
 	            curRoom.id = room.roomId;
 	            curRoom.name = room.roomName;
 	            curRoom.owner = room.roomOwner;
-	            data=room.roomId+'방을 만들었습니다.';
         	}
-        	
-            var sysmessage = {sender:'system', recepient:room.roomId, command:'groupchat', type:'text', data:data};
-            socket.emit('message',sysmessage);
 
         } else if (room.command === 'update') {
         	
@@ -326,6 +325,7 @@ io.sockets.on('connection', function(socket) {
         
         io.sockets.emit('room', output);
     });
+    
     socket.on('disconnect', function(){
     	console.log('disconnect 이벤트를 받았습니다.');
     	console.log(socket.login_id);
@@ -336,6 +336,7 @@ io.sockets.on('connection', function(socket) {
         console.log('클라이언트로 보낼 데이터 : ' + JSON.stringify(output));
         io.sockets.emit('currentId', output);
     });
+    
     
     
 });
